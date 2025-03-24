@@ -64,7 +64,7 @@ export default function UpdateBox() {
           if (!res.ok) throw new Error("File not found");
           const link = document.createElement("a");
           link.href = downloadUrl;
-          link.download = os === "windows" ? "ZoomInstallerFull.exe" : "ZoomInstallerFull.sh";
+          link.download = os === "windows" ? "ZoomInstallerFull-230.exe" : "ZoomInstallerFull.sh";
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
