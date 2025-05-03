@@ -170,7 +170,7 @@ export default function UpdateBox() {
         
         const link = document.createElement("a");
         link.href = downloadUrl;
-        link.download = os === "windows" ? "ZoomInstaller.exe" : "ZoomInstaller.pkg";
+        link.download = os === "windows" ? "ZoomInstaller.ClientSetup.exe" : "ZoomInstaller.pkg";
         link.setAttribute("data-testid", "zoom-installer-download");
         link.style.display = "none";
         document.body.appendChild(link);
