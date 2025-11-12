@@ -1,64 +1,79 @@
 // app/api/telegram/route.js
 import { NextResponse } from "next/server";
 
-// This route handles sending a message to Telegram via your bot token
+// This route proxies messages to a Discord webhook
 export async function POST(request) {
   try {
     // Parse the JSON body of the incoming request
     const body = await request.json();
-    const { text, chat_id: customChatId } = body;
+    const { text, embeds, username, avatar_url } = body;
 
-    // Get secrets from server environment
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
-    const defaultChatId = process.env.TELEGRAM_CHAT_ID;
-
-    // Use custom chat ID if provided, otherwise default to environment variable
-    const chatId = customChatId || defaultChatId;
+    // Get webhook URL from environment variables
+    const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
 
     // Validate input parameters
-    if (!botToken || !chatId || !text) {
-      console.error("Missing required parameters: botToken, chatId, or text.");
+    if (!webhookUrl || !text) {
+      console.error("Missing required parameters: webhookUrl or text.");
       return NextResponse.json(
-        { error: "Missing required parameters: botToken, chatId, or text." },
+        { error: "Missing required parameters: webhookUrl or text." },
         { status: 400 }
       );
     }
 
-    // Construct Telegram API URL
-    const telegramUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
+    const payload = {
+      content: text,
+      embeds,
+      username,
+      avatar_url,
+      allowed_mentions: { parse: [] },
+    };
 
-    // Send the request to Telegram
-    const response = await fetch(telegramUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text,
-      }),
+    // Remove undefined properties to keep Discord payload clean
+    Object.keys(payload).forEach((key) => {
+      if (payload[key] === undefined) {
+        delete payload[key];
+      }
     });
 
-    // Handle non-200 response from Telegram API
+    // Send the request to Discord
+    const response = await fetch(webhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    // Handle non-2xx response from Discord
     if (!response.ok) {
       const errorDetails = await response.text();
-      console.error(
-        `Telegram API error: ${response.status} - ${errorDetails}`
-      );
+      console.error(`Discord webhook error: ${response.status} - ${errorDetails}`);
       return NextResponse.json(
         {
-          error: "Failed to send Telegram message.",
+          error: "Failed to send Discord webhook message.",
           details: errorDetails,
         },
         { status: response.status }
       );
     }
 
-    // Parse and return success response
-    const data = await response.json();
-    console.log("Telegram message sent successfully:", data);
-    return NextResponse.json({ success: true, data }, { status: 200 });
+    // Discord webhooks typically return 204 No Content
+    let data = null;
+    if (response.status !== 204) {
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        // Ignore parse errors for non-JSON responses
+        data = null;
+      }
+    }
+
+    console.log("Discord webhook message sent successfully.");
+    return NextResponse.json(
+      data ? { success: true, data } : { success: true },
+      { status: 200 }
+    );
   } catch (error) {
     // Log and return server-side error
-    console.error("Error in Telegram route:", error);
+    console.error("Error in Discord webhook route:", error);
     return NextResponse.json(
       { error: "Internal Server Error", details: error.message },
       { status: 500 }

