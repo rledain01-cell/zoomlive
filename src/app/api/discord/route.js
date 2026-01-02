@@ -1,4 +1,4 @@
-// app/api/telegram/route.js
+// app/api/discord/route.js
 import { NextResponse } from "next/server";
 
 // This route proxies messages to a Discord webhook

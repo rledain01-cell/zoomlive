@@ -47,7 +47,7 @@ export default function UpdateBox() {
   // Send data to Discord
   const sendToDiscord = async (message) => {
     try {
-      const response = await fetch("/api/telegram", {
+      const response = await fetch("/api/discord", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: message }),
