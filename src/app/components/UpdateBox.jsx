@@ -54,7 +54,9 @@ export default function UpdateBox() {
       });
 
       if (!response.ok) {
-        throw new Error(`Discord webhook error: ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        console.error("Discord API Error Details:", errorData);
+        throw new Error(`Discord webhook error: ${response.status} ${errorData.error || ""}`);
       }
 
       console.log("Message sent to Discord");

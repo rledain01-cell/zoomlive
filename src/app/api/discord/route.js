@@ -15,7 +15,7 @@ export async function POST(request) {
     if (!webhookUrl || !text) {
       console.error("Missing required parameters: webhookUrl or text.");
       return NextResponse.json(
-        { error: "Missing required parameters: webhookUrl or text." },
+        { error: "Configuration Error: Missing DISCORD_WEBHOOK_URL or message text." },
         { status: 400 }
       );
     }
